@@ -1,0 +1,192 @@
+C51 COMPILER V9.54   MODEBUSRTU                                                            06/30/2025 16:57:15 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MODEBUSRTU
+OBJECT MODULE PLACED IN ..\hex文件\ModeBusRTU.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\App\ModeBusRTU.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\User;..\App
+                    -) DEBUG OBJECTEXTEND PRINT(.\List\ModeBusRTU.lst) OBJECT(..\hex文件\ModeBusRTU.obj)
+
+line level    source
+
+   1          #include "ModeBusRTU.h"
+   2          #include "stdlib.h"
+   3          #include "string.h"
+   4          #include "uart2.h"
+   5          #include "uart1.h"
+   6          #include "digital_cube.h"
+   7          double Time = 0;
+   8          unsigned char Res_cnt = 0;
+   9          /*从机地址*/
+  10          uint8_t address;
+  11          /*接收缓存*/
+  12          uint8_t ModbusReceiveBuf[20];
+  13          uint8_t ModBusSendBuf_len;
+  14          /*发送缓存*/
+  15          uint8_t ModBusSendBuf[20];
+  16          /*模拟寄存器*/
+  17          uint16_t Reg[6] = {0};
+  18          
+  19          uint8_t uart_send_flag = 0;
+  20          
+  21          
+  22          uint8_t cnt = 0;
+  23          uint16_t ModBus_CRC(uint8_t *addr,uint8_t num)
+  24          {
+  25   1              int i, j, temp;
+  26   1              uint16_t crc=0xFFFF;    
+  27   1              for(i = 0; i < num; i++) {
+  28   2                      crc = crc ^ (*addr);
+  29   2                      for( j = 0; j < 8; j++)
+  30   2                      {
+  31   3                              temp = crc & 0x0001;
+  32   3                              crc = crc>>1;
+  33   3                              if(temp) {
+  34   4                                      crc = crc ^ 0xA001;
+  35   4                              }
+  36   3                      }
+  37   2                      addr++;
+  38   2              }
+  39   1              return crc;
+  40   1      }
+  41          
+  42          
+  43          void ModBus_Send(void)
+  44          {
+  45   1              uint8_t i = 0, j = 0;
+  46   1              uint16_t Reg_address = (uint16_t)((ModbusReceiveBuf[2] << 8) | ModbusReceiveBuf[3]);
+  47   1              uint16_t Reg_len = (uint16_t)((ModbusReceiveBuf[4] << 8) | ModbusReceiveBuf[5]);
+  48   1              uint16_t crc = 0;
+  49   1              ModBusSendBuf[i++] = ModbusReceiveBuf[0];
+  50   1              ModBusSendBuf[i++] = 0x03;
+  51   1              ModBusSendBuf[i++] = ((Reg_len * 2) % 256);
+  52   1              for (j = 0; j < Reg_len; j++) {
+  53   2                      ModBusSendBuf[i++] = Reg[j + Reg_address] / 256;
+  54   2                      ModBusSendBuf[i++] = Reg[j + Reg_address] % 256;
+C51 COMPILER V9.54   MODEBUSRTU                                                            06/30/2025 16:57:15 PAGE 2   
+
+  55   2              }
+  56   1              crc = ModBus_CRC(ModBusSendBuf, i);
+  57   1              ModBusSendBuf[i++] = crc % 256;
+  58   1              ModBusSendBuf[i++] = crc / 256;
+  59   1              ModBusSendBuf_len = i;
+  60   1              uart_send_flag = 1;
+  61   1      
+  62   1      
+  63   1      
+  64   1      
+  65   1      }
+  66          
+  67          
+  68          void ModBus_write(void)
+  69          {
+  70   1              uint16_t Reg_address = (uint16_t)((ModbusReceiveBuf[2] << 8) | ModbusReceiveBuf[3]);
+  71   1              uint16_t receive_data = (uint16_t)((ModbusReceiveBuf[4] << 8) | ModbusReceiveBuf[5]);
+  72   1              Reg[Reg_address] = receive_data;
+  73   1      }
+  74          
+  75          uint8_t RxState = 0;        // 接收状态
+  76          uint8_t pRxPacket = 0;      // 当前接收到的位置
+  77          void ModBus_Clear(void)
+  78          {
+  79   1              RxState = 0;
+  80   1              pRxPacket = 0;
+  81   1              memset(ModbusReceiveBuf, 0, sizeof(ModbusReceiveBuf)); 
+  82   1      }
+  83          
+  84          void ModBus_ReadOneByte()
+  85          {
+  86   1              uint8_t CRC_H = 0, CRC_L = 0;
+  87   1              if ((ModbusReceiveBuf[0] == address || ModbusReceiveBuf[0] == 0xff) &&  Res_cnt >= 7) {
+  88   2                      
+  89   2                      if (ModBus_CRC(ModbusReceiveBuf, 6) == (ModbusReceiveBuf[7] << 8 | ModbusReceiveBuf[6])) {
+  90   3                              ModBus_handle();
+  91   3                              Res_cnt = 0;
+  92   3                              //P34 = ~P34;
+  93   3                      }
+  94   2              }
+  95   1              
+  96   1              Res_cnt = 0;
+  97   1              
+  98   1      }
+  99          
+ 100          void ModBus_handle()
+ 101          {
+ 102   1      
+ 103   1              switch (ModbusReceiveBuf[1])
+ 104   1              {
+ 105   2              case 0x03:
+ 106   2                      if (ModbusReceiveBuf[0] != 0xFF)
+ 107   2                              
+ 108   2                              ModBus_Send();
+ 109   2                      break;
+ 110   2              case 0x06:
+ 111   2                      
+ 112   2                      ModBus_write();
+ 113   2                      break;
+ 114   2              
+ 115   2              default:
+ 116   2                      break;
+C51 COMPILER V9.54   MODEBUSRTU                                                            06/30/2025 16:57:15 PAGE 3   
+
+ 117   2              }
+ 118   1      
+ 119   1      
+ 120   1      }
+ 121          
+ 122          
+ 123          void UART2_int (void) interrupt UART2_VECTOR
+ 124          {
+ 125   1              unsigned char temp;     
+ 126   1              Digital_Tube_flash();
+ 127   1          if((S2CON & 1) != 0)
+ 128   1          {
+ 129   2              S2CON &= ~1;    //Clear Rx flag
+ 130   2              temp =  S2BUF;
+ 131   2                      
+ 132   2                      //ModBus_ReadOneByte(temp);
+ 133   2                      //ModbusReceiveBuf[Res_cnt++] = temp;
+ 134   2                      cnt = 0;
+ 135   2          }
+ 136   1          if((S2CON & 2) != 0)
+ 137   1          {
+ 138   2              S2CON &= ~2;    //Clear Tx flag
+ 139   2                      
+ 140   2                      B_TX2_Busy = 0;
+ 141   2          }
+ 142   1      }
+ 143          
+ 144          
+ 145          
+ 146          
+ 147          void UART1_int (void) interrupt 4
+ 148          {
+ 149   1              unsigned char temp;     
+ 150   1              Digital_Tube_flash();
+ 151   1          if(RI)
+ 152   1          {
+ 153   2                      
+ 154   2              RI = 0;
+ 155   2              temp = SBUF;
+ 156   2                      ModbusReceiveBuf[Res_cnt++] = SBUF;
+ 157   2              cnt = 0;
+ 158   2          }
+ 159   1          if(TI)
+ 160   1          {
+ 161   2              TI = 0;
+ 162   2              B_TX1_Busy = 0;
+ 163   2          }
+ 164   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    812    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     63      18
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

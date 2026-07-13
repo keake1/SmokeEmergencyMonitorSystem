@@ -1,0 +1,31 @@
+<mxfile host="Electron">
+  <diagram name="第 1 页" id="djq2J5ztpBWPSVcCPn24">
+    <mxGraphModel dx="1122" dy="693" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="MjmJbLYU9oCY_uyOnJGD-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="590" width="570" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ynZrD2PNsQG2TqGJu8dm-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="串口1解析任务" vertex="1">
+          <mxGeometry height="60" width="120" x="140" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="ynZrD2PNsQG2TqGJu8dm-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="串口1发送任务" vertex="1">
+          <mxGeometry height="60" width="120" x="330" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="MjmJbLYU9oCY_uyOnJGD-2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="STM32F070控制器" vertex="1">
+          <mxGeometry height="30" width="120" x="245" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="fctc9kXyMxAeTJMZwmGw-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="七合一传感器" vertex="1">
+          <mxGeometry height="60" width="120" x="770" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="fctc9kXyMxAeTJMZwmGw-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="风压传感器" vertex="1">
+          <mxGeometry height="60" width="120" x="770" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="fctc9kXyMxAeTJMZwmGw-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="风压传感器传感器" vertex="1">
+          <mxGeometry height="60" width="120" x="770" y="450" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

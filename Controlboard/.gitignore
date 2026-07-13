@@ -1,0 +1,4 @@
+build/
+*.drawio
+*.markdown
+.drawio.bkp

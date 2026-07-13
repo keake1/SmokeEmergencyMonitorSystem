@@ -1,0 +1,586 @@
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE SPL06_001
+OBJECT MODULE PLACED IN ..\hexÎÄ¼þ\SPL06_001.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\App\SPL06_001.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\User;..\App)
+                    - DEBUG OBJECTEXTEND PRINT(.\List\SPL06_001.lst) OBJECT(..\hexÎÄ¼þ\SPL06_001.obj)
+
+line level    source
+
+   1          /***********************************************************************
+   2           * desined by ZINÐ¡µê
+   3           * @param[in] 
+   4           * @param[out] 
+   5           * @return     
+   6                   ÌÔ±¦µØÖ·£ºhttps://shop297229812.taobao.com/shop/view_shop.htm?mytmenu=mdianpu&user_number_id=2419305772
+   7           **********************************************************************/
+   8          #include "spl06_001.h"
+   9          #include "RI2C.h"
+  10          #include "stdio.h"
+  11          #include "string.h"
+  12          
+  13          #undef SUCCESS 
+  14          #define SUCCESS 0
+  15          #undef FAILED 
+  16          #define FAILED 1
+  17          #undef ENABLE 
+  18          #define ENABLE 1
+  19          #undef DISABLE 
+  20          #define DISABLE 0
+  21          
+  22          //¼Ä´æÆ÷¶¨Òå
+  23          #define PRESSURE_REG 0X00
+  24          #define TEMP_REG 0X03
+  25          #define PRS_CFG_REG 0x06 //ÆøÑ¹²âÁ¿ËÙÂÊÅäÖÃ
+  26          #define TMP_CFG_REG 0x07 //ÎÂ¶È²âÁ¿ËÙ¶ÈÅäÖÃ
+  27          #define MEAS_CFG_REG 0x08 //²âÁ¿ÅäÖÃÓë´«¸ÐÆ÷ÅäÖÃ
+  28          #define CFG_REG 0x09 //ÖÐ¶Ï/FIFO/SPIÏßÊýµÈÅäÖÃ
+  29          #define INT_STS_REG 0X0A //ÖÐ¶Ï×´Ì¬±êÖ¾Î»
+  30          #define FIFO_STS_REG 0X0B //FIFO×´Ì¬
+  31          #define RESET_REG 0X0C
+  32          #define ID_REG 0x0D
+  33          #define COEF_REG 0x10
+  34          
+  35          
+  36          #define s32 int32
+  37          #define int32 long
+  38          
+  39          
+  40          #define HW_ADR 0x77 //SDO HIGH OR NC//µ±SDOÀ­¸ß»òÕß¸¡¿ÕÊ¹ÓÃµÄI2CµØÖ·
+  41          
+  42          
+  43          static struct  {        //ÄÚ²¿³ö³§Ð£×¼Êý¾Ý
+  44              int16 c0;
+  45              int16 c1;
+  46              int32 c00;
+  47              int32 c10;
+  48              int16 c01;
+  49              int16 c11;
+  50              int16 c20;
+  51              int16 c21;
+  52              int16 c30;       
+  53          }spl06_calib_param;
+  54          
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 2   
+
+  55          
+  56          struct  {       
+  57              uint8 chip_id; /**<chip id*/        
+  58              int32 i32rawPressure;//Ô­Ê¼ÆøÑ¹Êý¾Ý
+  59              int32 i32rawTemperature;//Ô­Ê¼ÎÂ¶ÈÊý¾Ý
+  60              int32 i32kP;    //ÆøÑ¹²¹³¥²ÎÊý
+  61              int32 i32kT;//ÎÂ¶È²¹³¥²ÎÊý
+  62          }spl06;
+  63          
+  64          
+  65          
+  66          //I2CÅäÖÃ
+  67          #define spl0601_write(ADDR,REG,DATA) IIC_Write_1Byte(ADDR,REG,DATA)
+  68          uint8 spl0601_read(unsigned char hwadr, unsigned char regadr)
+  69          {
+  70   1              uint8 reg_data = 0;
+  71   1      
+  72   1              
+  73   1              IIC_Read_1Byte(hwadr,regadr,&reg_data);
+  74   1              return reg_data;
+  75   1      }
+  76          
+  77          //Ê²Ã´ÊÇ¹ý²ÉÑù£¬¾ÍÊÇ²ÉÑù¶à×éÈ¡Ò»´ÎÊý¾Ý£¬±ÈÈçÎÂ¶È²ÉÑùÆµÂÊ10HZ£¬ÉèÖÃ¹ý²ÉÑùÎª8£¬¾ÍÊÇÃ¿¸öÎÂ¶È¶ÁÈ¡¶¼ÊÇ8×éÈ¡Æ½¾ù
+             -£¬ÄÚ²¿Êµ¼Ê×öÁË80HZµÄÊý¾Ý²É¼¯£¬ºóÌ¨Ä£Ê½ÎÞ¹ý²ÉÑù
+  78          /***********************************************************************
+  79           * ÆøÑ¹²ÉÑùÂÊÅäÖÃ
+  80           * @param[in] ºóÌ¨Ä£Ê½background_rate²ÉÑùÆµÂÊN´Î/Ã¿Ãë£¨½ö¹©ºóÌ¨Ä£Ê½Ê¹ÓÃ,ÃüÁîÄ£Ê½²ÉÑùÆµÂÊÓÉÓÃ»§×Ô¼º¾ö¶¨£¬×î
+             -Ð¡¼ä¸ôÈ¡¾öÓÚ¹ý²ÉÑùËùÐèÊ±¼ä,²»Í¬µÄ¹ý²ÉÑùÊ±¼ä¿ÉÒÔÓÐ²»Í¬µÄ¹¦ºÄ£©£¬oversamply¹ý²ÉÑù´ÎÊý
+  81           * @param[out] 
+  82           * @return     
+  83           **********************************************************************/
+  84          #define PRESSURE_RATE_1_TIMES 0 //²ÉÑùÂÊ 
+  85          #define PRESSURE_RATE_2_TIMES 1
+  86          #define PRESSURE_RATE_4_TIMES 2
+  87          #define PRESSURE_RATE_8_TIMES 3
+  88          #define PRESSURE_RATE_16_TIMES 4
+  89          #define PRESSURE_RATE_32_TIMES 5
+  90          #define PRESSURE_RATE_64_TIMES 6
+  91          #define PRESSURE_RATE_128_TIMES 7
+  92          
+  93          void spl06_pressure_rate_config(u8 background_rate,u8 oversamply)
+  94          {
+  95   1                      u8 data0, data1;
+  96   1              
+  97   1                      data0 = (background_rate<<4)|oversamply;
+  98   1                      if(oversamply>PRESSURE_RATE_8_TIMES)//¹ý²ÉÑù´ÎÊý´óÓÚEMPERATURE_RATE_8_TIMES£¬Ó¦µ±ÔÊÐíÊý¾Ý±»ÐÂµÄÊý¾Ý¸²¸Ç£
+             -¬ÄÚ²¿ÓµÓÐÆøÑ¹ºÍÎÂ¶È¹²32¼¶µÄFIFO£¬ÔÚ´óÓÚ8´Î£¨Ò²¾ÍÊÇ´óÓÚ»òµÈÓÚ16´Î¹ý²ÉÑù£©µÄÊ±ºòÐèÒª±»ÐÂµÄÊý¾Ý¸²¸Ç£¬·ñÔòÊý¾Ý¾Í»á¶ªÊ§
+  99   1                      {
+ 100   2              data1 = spl0601_read(HW_ADR, CFG_REG);//¶ÁÈ¡Ô­¼Ä´æÆ÷Öµ
+ 101   2              data1 |= 0X04;//P-SHIFTÎ»ÖÃ1
+ 102   2                                      spl0601_write(HW_ADR, CFG_REG, data1);//ÖØÐÂÐ´»Ø¼Ä´æÆ÷                                  
+ 103   2                      }               
+ 104   1                      switch(oversamply)
+ 105   1          {
+ 106   2              case PRESSURE_RATE_2_TIMES:
+ 107   2                spl06.i32kP = 1572864;
+ 108   2                  break;
+ 109   2              case PRESSURE_RATE_4_TIMES:
+ 110   2                  spl06.i32kP  = 3670016;
+ 111   2                  break;
+ 112   2              case PRESSURE_RATE_8_TIMES:
+ 113   2                  spl06.i32kP  = 7864320;
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 3   
+
+ 114   2                  break;
+ 115   2              case PRESSURE_RATE_16_TIMES:
+ 116   2                  spl06.i32kP = 253952;
+ 117   2                  break;
+ 118   2              case PRESSURE_RATE_32_TIMES:
+ 119   2                  spl06.i32kP = 516096;       
+ 120   2                  break;
+ 121   2              case PRESSURE_RATE_64_TIMES:
+ 122   2                  spl06.i32kP = 1040384;           
+ 123   2                  break;
+ 124   2              case PRESSURE_RATE_128_TIMES:
+ 125   2                  spl06.i32kP = 2088960;
+ 126   2                  break;
+ 127   2              case PRESSURE_RATE_1_TIMES:
+ 128   2              default:
+ 129   2                  spl06.i32kP = 524288;
+ 130   2                  break;
+ 131   2          }           
+ 132   1                      spl0601_write(HW_ADR, PRS_CFG_REG, data0);//Ð´ÈëÅäÖÃ
+ 133   1      }
+ 134          
+ 135          /***********************************************************************
+ 136           * ÎÂ¶È²ÉÑùÂÊÅäÖÃ
+ 137           * @param[in] background_rate²ÉÑùÆµÂÊN´Î/Ã¿Ãë£¨½ö¹©ºóÌ¨Ä£Ê½Ê¹ÓÃ,ÃüÁîÄ£Ê½²ÉÑùÆµÂÊÓÉÓÃ»§×Ô¼º¾ö¶¨£¬×îÐ¡¼ä¸ôÈ¡
+             -¾öÓÚ¹ý²ÉÑùËùÐèÊ±¼ä£©£¬oversamply¹ý²ÉÑù´ÎÊý extÎÂ¶È¼ÆÑ¡Ôñ
+ 138           * @param[out] 
+ 139           * @return     
+ 140           **********************************************************************/
+ 141          #define TEMPERATURE_RATE_1_TIMES 0 //²ÉÑùÂÊ
+ 142          #define TEMPERATURE_RATE_2_TIMES 1
+ 143          #define TEMPERATURE_RATE_4_TIMES 2
+ 144          #define TEMPERATURE_RATE_8_TIMES 3
+ 145          #define TEMPERATURE_RATE_16_TIMES 4
+ 146          #define TEMPERATURE_RATE_32_TIMES 5
+ 147          #define TEMPERATURE_RATE_64_TIMES 6
+ 148          #define TEMPERATURE_RATE_128_TIMES 7
+ 149          #define TEMPERATURE_RATE_TMP_EXT_INTERNAL 0  //¼¯³ÉµçÂ·ÉÏµÄÎÂ¶È¼Æ
+ 150          #define TEMPERATURE_RATE_TMP_EXT_EXTERNAL 1  //´«¸ÐÆ÷MEMSÆøÑ¹Ð¾Æ¬ÉÏÎÂ¶È¼Æ
+ 151          void spl06_temperature_rate_config(u8 background_rate,u8 oversamply,u8 ext)
+ 152          {
+ 153   1                      u8 data0,data1;
+ 154   1              
+ 155   1                              data0 = (ext<<7)|(background_rate<<4)|oversamply;
+ 156   1                              if(oversamply>TEMPERATURE_RATE_8_TIMES)//¹ý²ÉÑù´ÎÊý´óÓÚEMPERATURE_RATE_8_TIMES£¬Ó¦µ±ÔÊÐíÊý¾Ý±»ÐÂµÄÊý¾Ý¸
+             -²¸Ç
+ 157   1                              {
+ 158   2                                              
+ 159   2              data1 = spl0601_read(HW_ADR, CFG_REG);//¶ÁÈ¡Ô­¼Ä´æÆ÷Öµ
+ 160   2              data1 |= 0X08;//T-SHIFTÎ»ÖÃ1
+ 161   2                                              spl0601_write(HW_ADR, CFG_REG, data1);  //ÖØÐÂÐ´»Ø¼Ä´æÆ÷                                        
+ 162   2                              }                       
+ 163   1                      switch(oversamply)
+ 164   1          {
+ 165   2              case TEMPERATURE_RATE_2_TIMES:
+ 166   2                spl06.i32kT = 1572864;
+ 167   2                  break;
+ 168   2              case TEMPERATURE_RATE_4_TIMES:
+ 169   2                  spl06.i32kT  = 3670016;
+ 170   2                  break;
+ 171   2              case TEMPERATURE_RATE_8_TIMES:
+ 172   2                  spl06.i32kT  = 7864320;
+ 173   2                  break;
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 4   
+
+ 174   2              case TEMPERATURE_RATE_16_TIMES:
+ 175   2                  spl06.i32kT = 253952;
+ 176   2                  break;
+ 177   2              case TEMPERATURE_RATE_32_TIMES:
+ 178   2                  spl06.i32kT = 516096;       
+ 179   2                  break;
+ 180   2              case TEMPERATURE_RATE_64_TIMES:
+ 181   2                  spl06.i32kT = 1040384;           
+ 182   2                  break;
+ 183   2              case TEMPERATURE_RATE_128_TIMES:
+ 184   2                  spl06.i32kT = 2088960;
+ 185   2                  break;
+ 186   2              case TEMPERATURE_RATE_1_TIMES:
+ 187   2              default:
+ 188   2                  spl06.i32kT = 524288;
+ 189   2                  break;
+ 190   2          }           
+ 191   1                      spl0601_write(HW_ADR, TMP_CFG_REG, data0);//Ð´ÈëÅäÖÃ
+ 192   1      }
+ 193          /***********************************************************************
+ 194           * ´«¸ÐÆ÷²âÁ¿Ä£Ê½ÅäÖÃÓë×´Ì¬¶ÁÈ¡
+ 195           * @param[in] 
+ 196           * @param[out] 
+ 197           * @return     
+ 198           **********************************************************************/
+ 199          #define MEAS_CFG_COEF_RDY 0X80 // ´«¸ÐÆ÷ÄÚ²¿Ð£×¼Öµ¿É¶Á£¬ÔÚÆô¶¯ºó
+ 200          #define MEAS_CFG_SENSOR_RDY 0X40 // ´«¸ÐÆ÷ÒÑ³õÊ¼»¯Íê³É£¬ÔÚÆô¶¯ºó
+ 201          #define MEAS_CFG_TMP_RDY 0x20 //ÎÂ¶ÈÖµÒÑ¾­×¼±¸¾ÍÐ÷£¬¿ÉÒÔ½øÐÐ¶ÁÈ¡£¬¸Ã±êÖ¾Î»¶ÁÈ¡ºó×Ô¶¯Çå0
+ 202          #define MEAS_CFG_PRS_RDY 0x10 //ÆøÑ¹ÖµÒÑ¾­×¼±¸¾ÍÐ÷£¬¿ÉÒÔ½øÐÐ¶ÁÈ¡£¬¸Ã±êÖ¾Î»
+ 203          #define MEAS_CFG_MEAS_CTR_STANDBY 0 //Ä£Ê½ÅäÖÃ ¹ÒÆðÄ£Ê½
+ 204          #define MEAS_CFG_MEAS_CTR_COMMAND_PRS 0x01 //Ä£Ê½ÅäÖÃ ÃüÁîÄ£Ê½ÏÂÆô¶¯ÆøÑ¹²É¼¯
+ 205          #define MEAS_CFG_MEAS_CTR_COMMAND_TMP 0x02 //Ä£Ê½ÅäÖÃ ÃüÁîÄ£Ê½ÏÂÆô¶¯ÎÂ¶È²É¼¯
+ 206          #define MEAS_CFG_MEAS_CTR_BACKGROUND_PRS 0x05 //Ä£Ê½ÅäÖÃ ºóÌ¨Ä£Ê½Ö»¶ÁÈ¡ÆøÑ¹Öµ
+ 207          #define MEAS_CFG_MEAS_CTR_BACKGROUND_TMP 0X06 //Ä£Ê½ÅäÖÃ ºóÌ¨Ä£Ê½Ö»¶ÁÈ¡ÎÂ¶ÈÖµ
+ 208          #define MEAS_CFG_MEAS_CTR_BACKGROUND_PSR_TMP 0X07 //Ä£Ê½ÅäÖÃ ºóÌ¨Ä£Ê½Í¬Ê±¶ÁÈ¡ÎÂ¶ÈÖµºÍÆøÑ¹Öµ
+ 209          //»ñÈ¡´«¸ÐÆ÷Êý¾Ý¾ÍÎ»×´Ì¬//´«¸ÐÆ÷¾ÍÐ÷×´Ì¬
+ 210          u8 spl06_get_measure_status(void)
+ 211          {
+ 212   1              return spl0601_read(HW_ADR, MEAS_CFG_REG);
+ 213   1      }
+ 214          //ÉèÖÃ¶ÁÈ¡Ä£Ê½+¶ÁÈ¡·½Ê½
+ 215          void spl06_set_measure_mode(u8 mode)  //²ÎÊýÎªÄ£Ê½Öµ
+ 216          {
+ 217   1               spl0601_write(HW_ADR, MEAS_CFG_REG,mode);
+ 218   1      }
+ 219          //Æô¶¯ÃüÁîÄ£Ê½¶ÁÈ¡ÎÂ¶ÈÖµ
+ 220          void spl06_start_temperature(void)
+ 221          {
+ 222   1          spl0601_write(HW_ADR, MEAS_CFG_REG, MEAS_CFG_MEAS_CTR_COMMAND_TMP);
+ 223   1      }
+ 224          //Æô¶¯ÃüÁîÄ£Ê½¶ÁÈ¡ÆøÑ¹Öµ
+ 225          void spl06_start_pressure(void)
+ 226          {
+ 227   1          spl0601_write(HW_ADR, MEAS_CFG_REG, MEAS_CFG_MEAS_CTR_COMMAND_PRS);
+ 228   1      }
+ 229          //½øÈë´ý»úÄ£Ê½£¬½øÈëºóÍ£Ö¹²É¼¯Êý¾ÝÖ±µ½ÔÙ´ÎÇÐ»»Ä£Ê½
+ 230          void spl06_enter_standby(void)
+ 231          {
+ 232   1          spl0601_write(HW_ADR, MEAS_CFG_REG, MEAS_CFG_MEAS_CTR_STANDBY);
+ 233   1      }
+ 234          
+ 235          /***********************************************************************
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 5   
+
+ 236           * ÖÐ¶ÏÓëFIFOÅäÖÃ¡¢SPIÄ£Ê½ÅäÖÃ
+ 237           * @param[in] 
+ 238           * @param[out] 
+ 239           * @return     
+ 240           **********************************************************************/
+ 241          #define CFG_INT_LEVEL_ACTIVE_LOW 0//ÖÐ¶ÏµÍµçÆ½ÓÐÐ§
+ 242          #define CFG_INT_LEVEL_ACTIVE_HIGH 1//ÖÐ¶Ï¸ßµçÆ½ÓÐÐ§
+ 243          #define CFG_INT_FIFO 0X40    //µ±FIFOÂúÊ¹ÄÜÖÐ¶Ï 
+ 244          #define CFG_INT_PRS 0X20    //µ±ÆøÑ¹¼Æ¶ÁÈ¡Íê±ÏÊ¹ÄÜÖÐ¶Ï 
+ 245          #define CFG_INT_TMP 0X10    //µ±ÎÂ¶È¶ÁÈ¡Íê±ÏÊ¹ÄÜÖÐ¶Ï 
+ 246          #define CFG_T_SHIFT 0X08    //ÔÊÐíÊý¾Ý±»¸²¸Ç£¬¿ÉÒÔ½øÐÐÏÂÒ»±Ê²É¼¯
+ 247          #define CFG_P_SHIFT 0X04    //ÔÊÐíÊý¾Ý±»¸²¸Ç£¬¿ÉÒÔ½øÐÐÏÂÒ»±Ê²É¼¯
+ 248          #define CFG_FIF 0X02    //Ê¹ÄÜFIFO
+ 249          #define CFG_SPI_3_WIRE 1    //3ÏßSPI
+ 250          #define CFG_SPI_4_WIRE 0    //4ÏßSPI
+ 251          
+ 252          void spl06_set_interrupt(u8 interrupt1,u8 type)//ÉèÖÃÖÐ¶ÏÊ¹ÄÜ
+ 253          {
+ 254   1              u8 data0;
+ 255   1              data0 = spl0601_read(HW_ADR, CFG_REG);
+ 256   1              if(type!=ENABLE )
+ 257   1                      data0 &= ~interrupt1;
+ 258   1              else
+ 259   1                      data0 |= interrupt1;    
+ 260   1              spl0601_write(HW_ADR, CFG_REG,data0);
+ 261   1      }
+ 262          
+ 263          void spl06_set_spi_wire(u8 wire)//ÉèÖÃSPIÏßÊý //3Ïß/4ÏßSPI¶ÁÈ¡Êý¾Ý
+ 264          {
+ 265   1              u8 data0;
+ 266   1              data0 = spl0601_read(HW_ADR, CFG_REG);
+ 267   1              data0 &= 0xf7;//SPIÏßÅäÖÃËùÔÚÎ»Çå0
+ 268   1              data0 |= wire;
+ 269   1              spl0601_write(HW_ADR, CFG_REG,data0);
+ 270   1      }
+ 271          
+ 272          void spl06_set_intrupt_level(u8 level)//ÉèÖÃÖÐ¶ÏÓÐÐ§µçÆ½//INT¸ßµçÆ½ÓÐÐ§»òÕßµÍµçÆ½ÓÐÐ§//levelÎª0ÔòµÍµçÆ½ÓÐÐ
+             -§,Îª1Ôò¸ßµçÆ½ÓÐÐ§
+ 273          {
+ 274   1              u8 data0;
+ 275   1              data0 = spl0601_read(HW_ADR, CFG_REG);
+ 276   1              data0 &= 0x7f;//ÖÐ¶ÏµçÆ½ÓÐÐ§Î»Çå0
+ 277   1              data0 |= level<<7;
+ 278   1              spl0601_write(HW_ADR, CFG_REG,data0);
+ 279   1      }
+ 280          
+ 281          /***********************************************************************
+ 282           * ÖÐ¶Ï×´Ì¬»ñÈ¡¡£ÓÉÓ²¼þÖÃ1£¬²¢·¢ÉúÏà¹ØÒý½ÅÖÐ¶Ï£¬¶ÁÈ¡¸Ã¼Ä´æÆ÷×Ô¶¯Çå0
+ 283           * @param[in] 
+ 284           * @param[out] 
+ 285           * @return     
+ 286           **********************************************************************/
+ 287          #define INT_STS_FIFO_FULL  0X04 //FIFOÂúÖÐ¶Ï×´Ì¬
+ 288          #define INT_STS_FIFO_TMP   0X02  //ÎÂ¶È²âÁ¿Íê³É±êÖ¾Î»
+ 289          #define INT_STS_FIFO_PRS  0X01  //ÆøÑ¹²âÁ¿Íê³É±êÖ¾Î»
+ 290          
+ 291          u8 spl06_get_int_status(void)//¶ÁÈ¡´«¸ÐÆ÷×´Ì¬
+ 292          {
+ 293   1              return spl0601_read(HW_ADR, INT_STS_REG);
+ 294   1      }
+ 295          
+ 296          /***********************************************************************
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 6   
+
+ 297           * FIFO×´Ì¬»ñÈ¡¡£
+ 298           * @param[in] 
+ 299           * @param[out] 
+ 300           * @return     
+ 301           **********************************************************************/
+ 302          #define FIFO_STS_FULL  0X02 //FIFOÂú
+ 303          #define FIFO_STS_EMPTY   0X01 //FIFO¿ÕÂú
+ 304          u8 spl06_get_fifo_status(void)
+ 305          {
+ 306   1              return spl0601_read(HW_ADR, FIFO_STS_REG);
+ 307   1      }
+ 308          /***********************************************************************
+ 309           *¸´Î»
+ 310           * @param[in] 
+ 311           * @param[out] 
+ 312           * @return     
+ 313           **********************************************************************/
+ 314          #define RESET_FIFO_FLUSH 0X80 //FIFOÇå0
+ 315          #define RESET_SOFT 0X09//Èí¼þ¸´Î»
+ 316          
+ 317          void spl06_soft_reset(void)//Èí¼þ¸´Î»
+ 318          {
+ 319   1               spl0601_write(HW_ADR,RESET_REG,RESET_SOFT);
+ 320   1      }
+ 321          void spl06_reset_fifo(void)//Èí¼þÇåFIFO
+ 322          {
+ 323   1        spl0601_write(HW_ADR,RESET_REG,RESET_FIFO_FLUSH);
+ 324   1      }
+ 325          /***********************************************************************
+ 326           *ID
+ 327           * @param[in] 
+ 328           * @param[out] 
+ 329           * @return     
+ 330           **********************************************************************/
+ 331          #define PRODUCT_ID 0X10//²úÆ·ID
+ 332          u8 spl06_get_chip_id(void)//»ñÈ¡²úÆ·ID//»ñÈ¡²úÆ·°æ±¾//ÓÉÓÚ°æ±¾ÔÚ²»Í¬µÄ´«¸ÐÆ÷ÓÐ²»Í¬£¬±¾Àú³ÌÖ»ÅÐ¶ÏIDÀ´Ê¶±ðSP
+             -L06
+ 333          {
+ 334   1              return spl0601_read(HW_ADR, ID_REG);
+ 335   1      }
+ 336          
+ 337          /***********************************************************************
+ 338           * »ñÈ¡ÆøÑ¹¼ÆÄÚ²¿µÄÐ£×¼²ÎÊý
+ 339           * @param[in] 
+ 340           * @param[out] 
+ 341           * @return     
+ 342           **********************************************************************/
+ 343          void spl0601_get_calib_param(void)//ÄÚ²¿Ð£×¼Öµ//ÆøÑ¹¼Æ½âËãÒÔ¼°ÎÂ²¹Ê¹ÓÃ//ÓÉÄÚ²¿³ö³§Éè¶¨
+ 344          {
+ 345   1          unsigned long h;
+ 346   1          unsigned long m;
+ 347   1          unsigned long l;
+ 348   1          h =  spl0601_read(HW_ADR, 0x10);
+ 349   1          l  =  spl0601_read(HW_ADR, 0x11);
+ 350   1          spl06_calib_param.c0 = (int16)h<<4 | l>>4;
+ 351   1          spl06_calib_param.c0 = (spl06_calib_param.c0&0x0800)?(0xF000|spl06_calib_param.c0):spl06_calib_param.c
+             -0;
+ 352   1          h =  spl0601_read(HW_ADR, 0x11);
+ 353   1          l  =  spl0601_read(HW_ADR, 0x12);
+ 354   1          spl06_calib_param.c1 = (int16)(h&0x0F)<<8 | l;
+ 355   1          spl06_calib_param.c1 = (spl06_calib_param.c1&0x0800)?(0xF000|spl06_calib_param.c1):spl06_calib_param.c
+             -1;
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 7   
+
+ 356   1          h =  spl0601_read(HW_ADR, 0x13);
+ 357   1          m =  spl0601_read(HW_ADR, 0x14);
+ 358   1          l =  spl0601_read(HW_ADR, 0x15);
+ 359   1          spl06_calib_param.c00 = (int32)h<<12 | (int32)m<<4 | (int32)l>>4;
+ 360   1          spl06_calib_param.c00 = (spl06_calib_param.c00&0x080000)?(0xFFF00000|spl06_calib_param.c00):spl06_cali
+             -b_param.c00;
+ 361   1          h =  spl0601_read(HW_ADR, 0x15);
+ 362   1          m =  spl0601_read(HW_ADR, 0x16);
+ 363   1          l =  spl0601_read(HW_ADR, 0x17);
+ 364   1          spl06_calib_param.c10 = (int32)h<<16 | (int32)m<<8 | l;
+ 365   1          spl06_calib_param.c10 = (spl06_calib_param.c10&0x080000)?(0xFFF00000|spl06_calib_param.c10):spl06_cali
+             -b_param.c10;
+ 366   1          h =  spl0601_read(HW_ADR, 0x18);
+ 367   1          l  =  spl0601_read(HW_ADR, 0x19);
+ 368   1          spl06_calib_param.c01 = (int16)h<<8 | l;
+ 369   1          h =  spl0601_read(HW_ADR, 0x1A);
+ 370   1          l  =  spl0601_read(HW_ADR, 0x1B);
+ 371   1          spl06_calib_param.c11 = (int16)h<<8 | l;
+ 372   1          h =  spl0601_read(HW_ADR, 0x1C);
+ 373   1          l  =  spl0601_read(HW_ADR, 0x1D);
+ 374   1          spl06_calib_param.c20 = (int16)h<<8 | l;
+ 375   1          h =  spl0601_read(HW_ADR, 0x1E);
+ 376   1          l  =  spl0601_read(HW_ADR, 0x1F);
+ 377   1          spl06_calib_param.c21 = (int16)h<<8 | l;
+ 378   1          h =  spl0601_read(HW_ADR, 0x20);
+ 379   1          l  =  spl0601_read(HW_ADR, 0x21);
+ 380   1          spl06_calib_param.c30 = (int16)h<<8 | l;
+ 381   1      }
+ 382          /***********************************************************************
+ 383           * ³õÊ¼»¯
+ 384           * @param[in] 
+ 385           * @param[out] 
+ 386           * @return     
+ 387           **********************************************************************/
+ 388          u8 spl0601_init(void)
+ 389          {
+ 390   1        
+ 391   1      
+ 392   1              
+ 393   1      
+ 394   1                      u8 spl06_start_status;
+ 395   1      
+ 396   1      
+ 397   1      
+ 398   1      
+ 399   1          
+ 400   1                      //µÈ´ýÄÚ²¿Ð£×¼Êý¾Ý¿ÉÓÃ
+ 401   1                      do {
+ 402   2                              spl06_start_status = spl06_get_measure_status();//¶ÁÈ¡ÆøÑ¹¼ÆÆô¶¯×´Ì¬
+ 403   2      //                      sprintf(str, "init1:%d:\r\n", spl06_start_status);
+ 404   2      //                      UART1_Send_NByte(strlen(str), str);
+ 405   2                      }
+ 406   1                      while((spl06_start_status&MEAS_CFG_COEF_RDY)!=MEAS_CFG_COEF_RDY);
+ 407   1                      //¶ÁÈ¡ÄÚ²¿Ð£×¼Öµ        
+ 408   1          spl0601_get_calib_param();  
+ 409   1                      //µÈ´ý´«¸ÐÆ÷ÄÚ²¿³õÊ¼»¯Íê³É
+ 410   1                      do
+ 411   1                              spl06_start_status = spl06_get_measure_status();//¶ÁÈ¡ÆøÑ¹¼ÆÆô¶¯×´Ì¬
+ 412   1                      while((spl06_start_status&MEAS_CFG_SENSOR_RDY)!=MEAS_CFG_SENSOR_RDY);
+ 413   1                      //¶ÁÈ¡CHIP ID
+ 414   1                spl06.chip_id = spl06_get_chip_id();
+ 415   1                      //ÅÐ¶Ï¶ÁÈ¡µÄIDÊÇ·ñÕýÈ·£¬ÕâÀïÖ»ÅÐ¶Ï¸ß4Î»µÄID£¬²»ÅÐ¶ÏµÍ4Î»µÄ°æ±¾ºÅ
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 8   
+
+ 416   1                      if((spl06.chip_id&0xf0)!=PRODUCT_ID) 
+ 417   1                              return FAILED;//Èç¹ûID¶ÁÈ¡Ê§°Ü£¬Ôò·µ»ØÊ§°Ü
+ 418   1                      //ºóÌ¨Êý¾Ý²ÉÑùËÙÂÊ128HZ ¹ý²ÉÑùÂÊ32´Î
+ 419   1                spl06_pressure_rate_config(PRESSURE_RATE_128_TIMES,PRESSURE_RATE_32_TIMES);
+ 420   1                      //ºóÌ¨Êý¾Ý²ÉÑùËÙÂÊ32HZ ¹ý²ÉÑùÂÊ8´Î//ÉèÖÃ´«¸ÐÆ÷ÉÏµÄÎÂ¶È¼Æ×÷ÎªÎÂ¶È²É¼¯
+ 421   1                spl06_temperature_rate_config(TEMPERATURE_RATE_32_TIMES,TEMPERATURE_RATE_8_TIMES,TEMPERATURE_RATE_TMP_E
+             -XT_EXTERNAL);
+ 422   1                      //Æô¶¯ºóÌ¨¶ÁÈ¡Êý¾Ý
+ 423   1                      spl06_set_measure_mode(MEAS_CFG_MEAS_CTR_BACKGROUND_PSR_TMP);
+ 424   1                      return SUCCESS;//³õÊ¼»¯³É¹¦
+ 425   1      }
+ 426          
+ 427          
+ 428          /***********************************************************************
+ 429           * »ñÈ¡Ô­Ê¼ÎÂ¶ÈÖµ
+ 430           * @param[in] 
+ 431           * @param[out] 
+ 432           * @return     
+ 433           **********************************************************************/
+ 434          void spl0601_get_raw_temp(void)
+ 435          {
+ 436   1          uint8 h[3] = {0};
+ 437   1          
+ 438   1                      h[0] = spl0601_read(HW_ADR, 0x03);
+ 439   1                      h[1] = spl0601_read(HW_ADR, 0x04);
+ 440   1                      h[2] = spl0601_read(HW_ADR, 0x05);
+ 441   1      
+ 442   1          spl06.i32rawTemperature = (int32)h[0]<<16 | (int32)h[1]<<8 | (int32)h[2];
+ 443   1          spl06.i32rawTemperature= (spl06.i32rawTemperature&0x800000) ? (0xFF000000|spl06.i32rawTemperature) : s
+             -pl06.i32rawTemperature;
+ 444   1      }
+ 445          
+ 446          /***********************************************************************
+ 447           * »ñÈ¡Ô­Ê¼ÆøÑ¹Öµ
+ 448           * @param[in] 
+ 449           * @param[out] 
+ 450           * @return     
+ 451           **********************************************************************/
+ 452          void spl0601_get_raw_pressure(void)
+ 453          {
+ 454   1          uint8 h[3];
+ 455   1          
+ 456   1                      h[0] = spl0601_read(HW_ADR, 0x00);
+ 457   1                      h[1] = spl0601_read(HW_ADR, 0x01);
+ 458   1                      h[2] = spl0601_read(HW_ADR, 0x02);
+ 459   1          
+ 460   1          spl06.i32rawPressure = (int32)h[0]<<16 | (int32)h[1]<<8 | (int32)h[2];
+ 461   1          spl06.i32rawPressure= (spl06.i32rawPressure&0x800000) ? (0xFF000000|spl06.i32rawPressure) : spl06.i32r
+             -awPressure;
+ 462   1      }
+ 463          
+ 464          
+ 465          /***********************************************************************
+ 466           * ÎÂ¶È½âËãÖµ
+ 467           * @param[in] 
+ 468           * @param[out] 
+ 469           * @return     
+ 470           **********************************************************************/
+ 471          float spl0601_get_temperature(void)
+ 472          {
+ 473   1          float fTCompensate;
+ 474   1          float fTsc;
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 9   
+
+ 475   1      
+ 476   1          fTsc = spl06.i32rawTemperature / (float)spl06.i32kT;
+ 477   1          fTCompensate =  spl06_calib_param.c0 * 0.5 + spl06_calib_param.c1 * fTsc;
+ 478   1          return fTCompensate;
+ 479   1      }
+ 480          
+ 481          /***********************************************************************
+ 482           * ÆøÑ¹½âËã²¢½øÐÐÎÂ¶È²¹³¥
+ 483           * @param[in] 
+ 484           * @param[out] 
+ 485           * @return     
+ 486           **********************************************************************/
+ 487          float spl0601_get_pressure(void)
+ 488          {
+ 489   1          float fTsc, fPsc;
+ 490   1          float qua2, qua3;
+ 491   1          float fPCompensate;
+ 492   1      
+ 493   1          fTsc = spl06.i32rawTemperature / (float)spl06.i32kT;
+ 494   1          fPsc = spl06.i32rawPressure / (float)spl06.i32kP;
+ 495   1          qua2 = spl06_calib_param.c10 + fPsc * (spl06_calib_param.c20 + fPsc* spl06_calib_param.c30);
+ 496   1          qua3 = fTsc * fPsc * (spl06_calib_param.c11 + fPsc * spl06_calib_param.c21);
+ 497   1                      //qua3 = 0.9f *fTsc * fPsc * (spl06_calib_param.c11 + fPsc * spl06_calib_param.c21);
+ 498   1              
+ 499   1          fPCompensate = spl06_calib_param.c00 + fPsc * qua2 + fTsc * spl06_calib_param.c01 + qua3;
+ 500   1                      //fPCompensate = spl06_calib_param.c00 + fPsc * qua2 + 0.9f *fTsc  * spl06_calib_param.c01 + qua3;
+ 501   1          return fPCompensate;
+ 502   1      }
+ 503          
+ 504          
+ 505          
+ 506          /***********************************************************************
+ 507           * »ñÈ¡ÎÂ¶ÈÖµ
+ 508           * @param[in] 
+ 509           * @param[out] 
+ 510           * @return     
+ 511           **********************************************************************/
+ 512          float user_spl0601_get_temperature()
+ 513          {
+ 514   1                      spl0601_get_raw_temp();//¶ÁÈ¡ÎÂ¶ÈÔ­Ê¼Öµ
+ 515   1                      return spl0601_get_temperature();//ÎÂ¶È½âËãºóµÄÖµ
+ 516   1      }
+ 517          /***********************************************************************
+ 518           * »ñÈ¡ÆøÑ¹¼ÆÎÂ¶È²¹³¥Öµ
+ 519           * @param[in] 
+ 520           * @param[out] 
+ 521           * @return     
+ 522           **********************************************************************/
+ 523          float user_spl0601_get_presure()
+ 524          {
+ 525   1                      spl0601_get_raw_pressure();//¶ÁÈ¡ÆøÑ¹ÖµÔ­Ê¼Öµ
+ 526   1                      return spl0601_get_pressure();  //ÆøÑ¹½âËã²¢¾­¹ýÎÂ¶È²¹³¥ºóµÄÆøÑ¹Öµ
+ 527   1      }
+ 528          
+ 529          
+ 530          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2616    ----
+   CONSTANT SIZE    =      3    ----
+   XDATA SIZE       =     39      48
+C51 COMPILER V9.54   SPL06_001                                                             06/30/2025 16:56:32 PAGE 10  
+
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

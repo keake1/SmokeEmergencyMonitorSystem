@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Controlboard",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/Controlboard.elf",
+            "device": "STM32F070xB",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "interface": "swd",
+            "openocdPreConfigLaunchCommands": [
+                "source [find interface/stlink-v2.cfg]"
+            ],
+            "openocdTargetArgs": "target/stm32f0x.cfg",
+            "gdbPath": "/usr/bin/arm-none-eabi-gdb",
+            "armToolchainPath": "/usr/bin"
+        }
+    ]
+}

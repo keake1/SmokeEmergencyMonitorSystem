@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --preset Debug)",
+      "Read(//opt/arm-gnu-toolchain-15.2.rel1/bin/**)",
+      "Read(//opt/**)",
+      "Bash(pacman -Q)",
+      "Read(//usr/bin/**)",
+      "Read(//usr/local/**)",
+      "Bash(arm-none-eabi-gcc --version)",
+      "Bash(cmake --build build/Debug)",
+      "Read(//home/keake/Projects/WindPressureDetectionSystem/**)",
+      "Read(//home/keake/Projects/WindPressureDetectionSystem/Hostboard/.vscode/**)",
+      "Bash(openocd --version)",
+      "Bash(pacman -Qi openocd)",
+      "Bash(rm /home/keake/Projects/WindPressureDetectionSystem/.vscode/launch.json)",
+      "Bash(rmdir /home/keake/Projects/WindPressureDetectionSystem/.vscode/)",
+      "Bash(rm /home/keake/Projects/WindPressureDetectionSystem/WindPressureDetectionSystem.code-workspace)"
+    ]
+  }
+}
