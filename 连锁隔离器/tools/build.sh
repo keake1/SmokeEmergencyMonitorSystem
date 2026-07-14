@@ -39,8 +39,6 @@ SOURCES=(
     main.c
     board.c
     crc16.c
-    display.c
-    pressure.c
     sensor_modbus.c
     uart.c
 )

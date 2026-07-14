@@ -91,4 +91,8 @@ __sbit __at(0xB7) P37;
 #define S2CON_REN 0x10U
 #define S2CON_MODE1 0x00U
 
+/* 端口内部上拉控制寄存器（xdata 地址） */
+#define P0PU    (*(volatile uint8_t __xdata *)0xFE10U)
+#define P1PU    (*(volatile uint8_t __xdata *)0xFE11U)
+
 #endif

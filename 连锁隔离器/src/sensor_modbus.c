@@ -16,7 +16,7 @@
  *
  * 支持的指令（与 Controlboard modbus_tasks.c 对应）：
  *   读：  addr 03 00 00 00 01 CRC
- *         回复 addr 03 03 <型号 0x02> <压力高> <压力低> CRC
+ *         回复 addr 03 03 <型号 0x07> <电平高> <电平低> CRC
  *   报警：addr 06 00 04 00 <00/01> CRC → 控制红灯
  *         不回复——主站不等待写响应，且主站解析不区分功能码，
  *         回显帧的 frame[3]=0x04 会被误认为 7合1 型号字节。
@@ -57,21 +57,21 @@ static void SensorModbus_RestartGapTimer(void)
     TCON |= TCON_TR0;
 }
 
-static void SensorModbus_ReplyPressure(uint8_t addr, uint16_t pressure)
+static void SensorModbus_ReplyLevel(uint8_t addr, uint16_t level)
 {
     uint8_t tx[8];
 
     tx[0] = addr;
     tx[1] = 0x03U;
-    tx[2] = 0x03U;                       /* 字节数：型号 + 2 字节数据 */
-    tx[3] = SENSOR_TYPE_WIND_PRESSURE;   /* 0x02 */
-    tx[4] = (uint8_t)(pressure >> 8);
-    tx[5] = (uint8_t)pressure;
+    tx[2] = 0x03U;                               /* 字节数：型号 + 2 字节数据 */
+    tx[3] = SENSOR_TYPE_CHAIN_ISOLATOR;           /* 0x07 */
+    tx[4] = (uint8_t)(level >> 8);
+    tx[5] = (uint8_t)level;
     Crc16_Append(tx, 6U);
     Uart2_Send(tx, sizeof(tx));
 }
 
-static void SensorModbus_HandleFrame(uint8_t my_addr, uint16_t pressure)
+static void SensorModbus_HandleFrame(uint8_t my_addr, uint16_t level)
 {
     /* 主站请求固定 8 字节；其它长度（如别的传感器响应）直接忽略 */
     if (g_rx_len != 8U) {
@@ -90,7 +90,7 @@ static void SensorModbus_HandleFrame(uint8_t my_addr, uint16_t pressure)
     if ((g_rx[1] == 0x03U) &&
         (g_rx[2] == 0x00U) && (g_rx[3] == 0x00U) &&
         (g_rx[4] == 0x00U) && (g_rx[5] == 0x01U)) {
-        SensorModbus_ReplyPressure(my_addr, pressure);
+        SensorModbus_ReplyLevel(my_addr, level);
         return;
     }
 
@@ -102,7 +102,7 @@ static void SensorModbus_HandleFrame(uint8_t my_addr, uint16_t pressure)
     }
 }
 
-void SensorModbus_Process(uint8_t my_addr, uint16_t pressure)
+void SensorModbus_Process(uint8_t my_addr, uint16_t level)
 {
     uint8_t b;
 
@@ -120,7 +120,7 @@ void SensorModbus_Process(uint8_t my_addr, uint16_t pressure)
     if ((g_rx_len != 0U) && ((TCON & TCON_TF0) != 0U)) {
         TCON &= (uint8_t)~(TCON_TR0 | TCON_TF0);
         if (g_rx_overflow == 0U) {
-            SensorModbus_HandleFrame(my_addr, pressure);
+            SensorModbus_HandleFrame(my_addr, level);
         }
         g_rx_len = 0U;
         g_rx_overflow = 0U;
