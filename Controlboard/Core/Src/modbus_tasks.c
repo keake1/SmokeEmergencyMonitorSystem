@@ -236,6 +236,16 @@ void TaskModbusReceive(void *arg)
                             new_alarm = 0;
                         break;
                     }
+                    case SENSOR_MODEL_CHAIN_ISOLATOR:
+                    {
+                        /* 连锁隔离器：P00=1 → 报警；P00=0 → 正常 */
+                        uint16_t level = ModbusReg_GetData(slave, 0);
+                        if (cur_alarm == 0 && level >= 1)
+                            new_alarm = 1;
+                        else if (cur_alarm == 1 && level == 0)
+                            new_alarm = 0;
+                        break;
+                    }
                     default:
                         break;
                 }

@@ -223,6 +223,13 @@ static void DWIN_BuildSensorFrame(uint8_t slave, uint8_t model)
             data[DWIN_OFFSET_CO2 * 2 + 1] = (uint8_t)(raw & 0xFF);
             break;
 
+        case SENSOR_MODEL_CHAIN_ISOLATOR:
+            /* P00 电平值 reg_data[0] → uint16 到偏移 8-9（余压位置，型号互斥） */
+            raw = ModbusReg_GetData(slave, 0);
+            data[DWIN_OFFSET_PRESSURE * 2 + 0] = (uint8_t)(raw >> 8);
+            data[DWIN_OFFSET_PRESSURE * 2 + 1] = (uint8_t)(raw);
+            break;
+
         default:
             return;
     }

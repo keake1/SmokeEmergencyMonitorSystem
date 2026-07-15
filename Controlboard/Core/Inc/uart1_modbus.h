@@ -54,6 +54,7 @@ extern "C" {
 #define SENSOR_MODEL_7IN1     0x04
 #define SENSOR_MODEL_TH       0x05  /* 温湿度传感器 */
 #define SENSOR_MODEL_CO2      0x06  /* CO2 传感器 */
+#define SENSOR_MODEL_CHAIN_ISOLATOR  0x07  /* 连锁隔离器 */
 /** @} */
 
 /** @defgroup Buffer_Sizes */

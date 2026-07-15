@@ -118,6 +118,12 @@ static void DetailPushToDwin(uint8_t sensor_idx, uint8_t type, const uint16_t *r
             buf[11] = (uint8_t)(regs[0] & 0xFF);
             break;
         }
+        case 0x07:  /* 连锁隔离器 — P00 电平值到偏移 8-9（复用余压位置） */
+        {
+            buf[8] = (uint8_t)(regs[0] >> 8);
+            buf[9] = (uint8_t)(regs[0] & 0xFF);
+            break;
+        }
         default:
             return;
     }
