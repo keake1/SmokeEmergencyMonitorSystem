@@ -85,7 +85,9 @@ void Error_Handler(void);
 #define RED_LED_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+/* PB1 报警输入（高电平=报警，替代原 PA0 Isolator） */
+#define Isolator_Pin            GPIO_PIN_1
+#define Isolator_GPIO_Port      GPIOB
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

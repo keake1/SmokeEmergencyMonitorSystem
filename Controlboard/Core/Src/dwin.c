@@ -428,10 +428,14 @@ void TaskDwinIcons(void *arg)
         DWIN_Enqueue(DWIN_ITEM_BOARD_ADDR, 0, 0);
         DWIN_ProcessQueue();
 
+        /* ---- PB1 报警输入（高电平=报警） ---- */
+        ModbusReg_SetSmokeAlarm(
+            HAL_GPIO_ReadPin(Isolator_GPIO_Port, Isolator_Pin) != GPIO_PIN_RESET);
+
         /* ---- 报警输出（高电平有效） ---- */
-        /* WS (PB0): 全局报警 → 高电平 */
+        /* WS (PB0): 全局报警 或 PB1 报警 → 高电平 */
         HAL_GPIO_WritePin(WS_GPIO_Port, WS_Pin,
-            DWIN_GetGlobalAlarm() ? GPIO_PIN_SET : GPIO_PIN_RESET);
+            (DWIN_GetGlobalAlarm() || ModbusReg_GetSmokeAlarm()) ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
         /* ---- LED 指示（低电平点亮） ---- */
         /* RED_LED (PB9): 全局报警 → 点亮 */
