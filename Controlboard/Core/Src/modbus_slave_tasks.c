@@ -60,7 +60,7 @@ void TaskSlaveRecv(void *arg)
     uint16_t crc;
 
     /* 根据寄存器表限制最大读取范围 */
-#define MAX_COIL_BITS       (COIL_SMOKE_ALARM + 1)   /* 130: 线圈最大地址+1 */
+#define MAX_COIL_BITS       (COIL_GLOBAL_ALARM + 1)   /* 129: 线圈最大地址+1 */
 #define MAX_HOLDING_REGS    125                       /* 3+125*2+2=255 = 256 */
 
     for (;;)

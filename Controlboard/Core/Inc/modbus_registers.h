@@ -62,7 +62,6 @@ extern "C" {
 #define COIL_OFFSET_ALARM       63     /* 位 63-125: 报警标志 */
 #define COIL_OFFSET_SYSTEM      126    /* 位 126: 零地址存在 / 位 127: 地址重复 */
 #define COIL_GLOBAL_ALARM       128    /* 位 128: 全局报警（任一传感器报警=1） */
-#define COIL_SMOKE_ALARM        129    /* 位 129: 烟雾报警器报警标志（Isolator 引脚输入） */
 /** @} */
 
 /* USER CODE BEGIN EConst */
@@ -128,12 +127,6 @@ uint8_t  ModbusReg_GetAddrConflict(void);            /* 查询是否存在地址
 /** @{ */
 void     ModbusReg_SetGlobalAlarm(uint8_t alarm);    /* DWIN 状态帧更新时同步写入 */
 uint8_t  ModbusReg_GetGlobalAlarmCoil(void);         /* 查询全局报警标志 */
-/** @} */
-
-/** @defgroup Smoke_Alarm 烟雾报警器标志（线圈位 129，Isolator 引脚输入） */
-/** @{ */
-void     ModbusReg_SetSmokeAlarm(uint8_t alarm);     /* TaskDwinIcons 读取 Isolator 引脚后同步写入 */
-uint8_t  ModbusReg_GetSmokeAlarm(void);              /* 查询烟雾报警器报警状态 */
 /** @} */
 
 /* USER CODE BEGIN EFP */

@@ -83,8 +83,6 @@ extern "C" {
 #define DWIN_FLAG_ALARM         0x1440               /* 全局报警标志（2 地址） */
 #define DWIN_FLAG_ZERO_ADDR     0x1442               /* 零地址存在标志 */
 #define DWIN_FLAG_CONFLICT      0x1443               /* 地址重复标志 */
-#define DWIN_FLAG_SMOKE_ALARM   0x1444               /* 烟雾报警器图标 */
-
 #define DWIN_BOARD_ADDR         0x1500               /* 控板 DIP 地址 */
 /** @} */
 

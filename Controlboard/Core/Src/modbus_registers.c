@@ -66,9 +66,6 @@ static uint8_t  board_hw_addr = 0;                                /* ID1-ID8 读
 /* ==================== 全局报警标志（线圈位 128） ==================== */
 static uint8_t  global_alarm_flag = 0;                            /* 由 DWIN 状态帧更新时同步 */
 
-/* ==================== 烟雾报警器标志（线圈位 129） ==================== */
-static uint8_t  smoke_alarm_flag = 0;                            /* 由 TaskDwinIcons 读取 Isolator 引脚后更新 */
-
 /* USER CODE END 0 */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -219,11 +216,6 @@ uint8_t ModbusReg_ReadCoil(uint16_t coil_addr)
         /* 位 128: 全局报警 */
         return global_alarm_flag;
     }
-    else if (coil_addr == COIL_SMOKE_ALARM)
-    {
-        /* 位 129: 烟雾报警器 */
-        return smoke_alarm_flag;
-    }
     return 0;
 }
 
@@ -368,18 +360,6 @@ void ModbusReg_SetGlobalAlarm(uint8_t alarm)
 uint8_t ModbusReg_GetGlobalAlarmCoil(void)
 {
     return global_alarm_flag;
-}
-
-/* ==================== 烟雾报警器标志（线圈位 129） ==================== */
-
-void ModbusReg_SetSmokeAlarm(uint8_t alarm)
-{
-    smoke_alarm_flag = (alarm != 0) ? 1 : 0;
-}
-
-uint8_t ModbusReg_GetSmokeAlarm(void)
-{
-    return smoke_alarm_flag;
 }
 
 /* USER CODE END 0 */

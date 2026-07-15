@@ -55,18 +55,18 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin|ORANGE_LED_Pin|RED_LED_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin : Isolator_Pin */
-  GPIO_InitStruct.Pin = Isolator_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(Isolator_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pin : WS_Pin */
   GPIO_InitStruct.Pin = WS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(WS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : READ_WIND_Pin */
+  GPIO_InitStruct.Pin = READ_WIND_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(READ_WIND_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ID8_Pin ID7_Pin ID4_Pin ID3_Pin
                            ID2_Pin ID1_Pin */

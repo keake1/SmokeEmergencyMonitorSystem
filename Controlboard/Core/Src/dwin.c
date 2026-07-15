@@ -255,12 +255,12 @@ static void DWIN_BuildStatusFrame(void)
     /* ---- 帧头 ---- */
     tx_frame_buf[idx++] = DWIN_HEADER_1;
     tx_frame_buf[idx++] = DWIN_HEADER_2;
-    tx_frame_buf[idx++] = 3 + 69 * 2;                   /* 3 + 138 = 141 */
+    tx_frame_buf[idx++] = 3 + 68 * 2;                   /* 3 + 136 = 139 */
     tx_frame_buf[idx++] = DWIN_CMD_WRITE_VAR;
     tx_frame_buf[idx++] = (uint8_t)(DWIN_ICON_BASE >> 8);
     tx_frame_buf[idx++] = (uint8_t)(DWIN_ICON_BASE & 0xFF);
 
-    /* ---- 数据区（69 × uint16 = 138 字节） ---- */
+    /* ---- 数据区（68 × uint16 = 136 字节） ---- */
     uint8_t *data = &tx_frame_buf[idx];
     memset(data, 0, 69 * 2);
 
@@ -286,8 +286,8 @@ static void DWIN_BuildStatusFrame(void)
         data[(i - 1) * 2 + 1] = (uint8_t)(icon_val);
     }
 
-    /* 开窗标志 = 传感器报警 OR 烟雾报警（同步到 0x1440 开窗图标，与 WS 引脚一致） */
-    uint8_t window_open = dwin_global_alarm || ModbusReg_GetSmokeAlarm();
+    /* 开窗标志 = 传感器全局报警（同步到 0x1440 开窗图标，与 WS 引脚一致） */
+    uint8_t window_open = dwin_global_alarm;
 
     /* 线圈位 128 = 传感器全局报警（仅传感器，不含烟雾） */
     ModbusReg_SetGlobalAlarm(dwin_global_alarm);
@@ -308,11 +308,7 @@ static void DWIN_BuildStatusFrame(void)
     data[67 * 2 + 0] = 0;
     data[67 * 2 + 1] = ModbusReg_GetAddrConflict();
 
-    /* 烟雾报警器 → 0x1444 */
-    data[68 * 2 + 0] = 0;
-    data[68 * 2 + 1] = ModbusReg_GetSmokeAlarm();
-
-    tx_frame_len = idx + 69 * 2;
+    tx_frame_len = idx + 68 * 2;
 }
 
 /**
@@ -432,14 +428,10 @@ void TaskDwinIcons(void *arg)
         DWIN_Enqueue(DWIN_ITEM_BOARD_ADDR, 0, 0);
         DWIN_ProcessQueue();
 
-        /* ---- 烟雾报警器状态（Isolator PA0，低电平=报警） ---- */
-        ModbusReg_SetSmokeAlarm(
-            HAL_GPIO_ReadPin(Isolator_GPIO_Port, Isolator_Pin) == GPIO_PIN_RESET);
-
         /* ---- 报警输出（高电平有效） ---- */
-        /* WS (PB0): 全局报警 或 烟雾报警 → 高电平 */
+        /* WS (PB0): 全局报警 → 高电平 */
         HAL_GPIO_WritePin(WS_GPIO_Port, WS_Pin,
-            (DWIN_GetGlobalAlarm() || ModbusReg_GetSmokeAlarm()) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+            DWIN_GetGlobalAlarm() ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
         /* ---- LED 指示（低电平点亮） ---- */
         /* RED_LED (PB9): 全局报警 → 点亮 */
