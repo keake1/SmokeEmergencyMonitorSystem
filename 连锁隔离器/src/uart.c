@@ -24,7 +24,7 @@ void Uart_Init(void)
     T2H = (uint8_t)(reload2 >> 8);
     T2L = (uint8_t)reload2;
     /* T2x12=1 | T2R=1：1T 模式，启动 Timer 2 */
-    AUXR = (AUXR & (uint8_t)~0x01U) | 0x50U;
+    AUXR = (AUXR & (uint8_t)~0x01U) | 0x14U;
 
     S2CON &= (uint8_t)~(S2CON_RI | S2CON_TI);
 }

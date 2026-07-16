@@ -6,18 +6,16 @@
             "type": "cortex-debug",
             "request": "launch",
             "servertype": "openocd",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceRoot}",
             "executable": "${workspaceFolder}/build/Debug/Hostboard.elf",
-            "device": "STM32F407VET6",
-            "runToEntryPoint": "main",
-            "showDevDebugOutput": "none",
-            "interface": "swd",
-            "openocdPreConfigLaunchCommands": [
-                "source [find interface/stlink-v2.cfg]"
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32f4x.cfg"
             ],
-            "openocdTargetArgs": "target/stm32f4x.cfg",
-            "gdbPath": "/usr/bin/arm-none-eabi-gdb",
-            "armToolchainPath": "/usr/bin"
+            "openOCDLaunchCommands": [
+                "set FLASH_SIZE 0x80000"
+            ],
+            "runToEntryPoint": "main"
         }
     ]
 }

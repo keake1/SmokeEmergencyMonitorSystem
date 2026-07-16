@@ -286,11 +286,11 @@ static void DWIN_BuildStatusFrame(void)
         data[(i - 1) * 2 + 1] = (uint8_t)(icon_val);
     }
 
-    /* 开窗标志 = 传感器全局报警（同步到 0x1440 开窗图标，与 WS 引脚一致） */
-    uint8_t window_open = dwin_global_alarm;
+    /* 开窗标志 = 全局报警标志（含 PB1 报警，同步到 0x1440 开窗图标，与 WS 引脚一致） */
+    uint8_t window_open = dwin_global_alarm || ModbusReg_GetSmokeAlarm();
 
-    /* 线圈位 128 = 传感器全局报警（仅传感器，不含烟雾） */
-    ModbusReg_SetGlobalAlarm(dwin_global_alarm);
+    /* 线圈位 128 = 全局报警（传感器 OR PB1） */
+    ModbusReg_SetGlobalAlarm(window_open);
 
     /* 0x1440：开窗图标（与 WS 引脚一致） */
     data[64 * 2 + 0] = 0;
@@ -431,6 +431,11 @@ void TaskDwinIcons(void *arg)
         /* ---- PB1 报警输入（高电平=报警） ---- */
         ModbusReg_SetSmokeAlarm(
             HAL_GPIO_ReadPin(Isolator_GPIO_Port, Isolator_Pin) != GPIO_PIN_RESET);
+
+        /* 同步 PB1 报警到全局报警标志（红灯、线圈位 128） */
+        if (ModbusReg_GetSmokeAlarm()) {
+            ModbusReg_SetGlobalAlarm(1);
+        }
 
         /* ---- 报警输出（高电平有效） ---- */
         /* WS (PB0): 全局报警 或 PB1 报警 → 高电平 */

@@ -26,15 +26,6 @@ void Board_Init(void)
 {
     Board_SetQuasiBidirectional();
 
-    /* P00 电平检测输入 → 高阻输入 + 内部下拉，悬空时默认低电平 */
-    P0M0 &= (uint8_t)~0x01U;
-    P0M1 |= 0x01U;
-    P0PD |= 0x01U;
-
-    /* 拨码地址引脚使能内部上拉：与 CO 传感器逻辑一致 */
-    P0PU |= 0x0CU;  /* P02, P03 */
-    P1PU |= 0x3CU;  /* P12, P13, P14, P15 */
-
     P02 = 1;
     P03 = 1;
     P12 = 1;
@@ -58,11 +49,6 @@ uint8_t Board_ReadAddress(void)
     if (P02 == 0) { addr |= 0x01U; }
 
     return addr;
-}
-
-uint16_t Board_ReadP00Level(void)
-{
-    return (P00 != 0U) ? 1U : 0U;
 }
 
 void Board_RedLedSet(uint8_t on)
