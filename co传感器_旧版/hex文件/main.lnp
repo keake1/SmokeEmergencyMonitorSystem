@@ -1,0 +1,15 @@
+"..\hex文件\main.obj",
+"..\hex文件\RI2C.obj",
+"..\hex文件\delay.obj",
+"..\hex文件\uart1.obj",
+"..\hex文件\SPL06_001.obj",
+"..\hex文件\adc.obj",
+"..\hex文件\timer2.obj",
+"..\hex文件\digital_cube.obj",
+"..\hex文件\addr.obj",
+"..\hex文件\uart2.obj",
+"..\hex文件\ModeBusRTU.obj",
+"..\hex文件\timer0.obj" 
+TO "..\hex文件\main" 
+PRINT(".\List\main.m51") RAMSIZE(256) 
+DISABLEWARNING (16) 

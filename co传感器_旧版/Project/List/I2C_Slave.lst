@@ -1,0 +1,105 @@
+C51 COMPILER V9.54   I2C_SLAVE                                                             05/05/2025 14:52:03 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE I2C_SLAVE
+OBJECT MODULE PLACED IN ..\hex文件\I2C_Slave.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\App\I2C_Slave.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\User;..\App)
+                    - DEBUG OBJECTEXTEND PRINT(.\List\I2C_Slave.lst) OBJECT(..\hex文件\I2C_Slave.obj)
+
+line level    source
+
+   1          #include "I2C_Slave.h"
+   2          //
+   3          bit DisplayFlag;
+   4          bit isda;                                       //设备地址标志
+   5          bit isma; 
+   6          u8 addr;
+   7          u8 pdata buffer[256];
+   8          
+   9          /*************************************
+  10          /*函数名称：IIC_Slave_Init()
+  11          /*函数功能：等待延时
+  12          /*输入参数：无
+  13          /*返回值：      无
+  14          *************************************/
+  15          void IIC_Slave_Init()
+  16          {
+  17   1              P3M1 = 0x04;    P3M0 = 0x04;   //SCL设置为开漏输出，SDA设置为准双向口
+  18   1              P_SW2 = 0x80;
+  19   1      //      P_SW2 |= 0x00;          //I2C功能脚选择P1.5/P1.4
+  20   1              P_SW2 |= 0x30;          //I2C功能脚选择P3.2/P3.3
+  21   1              I2CCFG = 0x80;          //使能I2C从机模式
+  22   1              I2CSLADR = 0x5a;        //设置从机设备地址为5A
+  23   1              I2CSLST = 0x00;
+  24   1              I2CSLCR = 0x78;         //使能从机模式中断
+  25   1              isda = 1;               //用户变量初始化
+  26   1              isma = 1;
+  27   1              addr = 0;
+  28   1              I2CTXD = buffer[addr];
+  29   1      }
+  30          
+  31          //
+  32          void I2C_Isr() interrupt I2C_VECTOR
+  33          {
+  34   1              char store;
+  35   1              store = P_SW2;
+  36   1              P_SW2 |= 0x80;
+  37   1              if (I2CSLST & 0x40)
+  38   1              {
+  39   2                      I2CSLST &= ~0x40;                               //处理START事件
+  40   2              }
+  41   1              else if (I2CSLST & 0x20)
+  42   1              {
+  43   2                      I2CSLST &= ~0x20;                               //处理RECV事件，SLACKO设置为0
+  44   2                      if (isda)
+  45   2                      {
+  46   3                              isda = 0;                                                       //处理RECV事件（RECV DEVICE ADDR）
+  47   3                      }
+  48   2                      else if (isma)
+  49   2                      {
+  50   3                              isma = 0;                                                       //处理RECV事件（RECV MEMORY ADDR）
+  51   3                              addr = I2CRXD;
+  52   3                              I2CTXD = buffer[addr];
+  53   3                      }
+  54   2                      else
+C51 COMPILER V9.54   I2C_SLAVE                                                             05/05/2025 14:52:03 PAGE 2   
+
+  55   2                      {
+  56   3                              buffer[addr++] = I2CRXD;        //处理RECV事件（RECV DATA）
+  57   3                      }
+  58   2              }
+  59   1              else if (I2CSLST & 0x10)
+  60   1              {
+  61   2                      I2CSLST &= ~0x10;                                               //处理SEND事件
+  62   2                      if (I2CSLST & 0x02)
+  63   2                      {
+  64   3                              I2CTXD = 0xff;
+  65   3                      }
+  66   2                      else
+  67   2                      {
+  68   3                              I2CTXD = buffer[++addr];
+  69   3                      }
+  70   2              }
+  71   1              else if (I2CSLST & 0x08)
+  72   1              {
+  73   2                      I2CSLST &= ~0x08;                                               //处理STOP事件
+  74   2                      isda = 1;
+  75   2                      isma = 1;
+  76   2                      DisplayFlag = 1;
+  77   2              }
+  78   1              P_SW2 = store;
+  79   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    220    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      1    ----
+   PDATA SIZE       =    256    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

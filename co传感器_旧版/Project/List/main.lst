@@ -1,0 +1,164 @@
+C51 COMPILER V9.54   MAIN                                                                  06/30/2025 16:56:32 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN ..\hex文件\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\User\main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\User;..\App) DEB
+                    -UG OBJECTEXTEND PRINT(.\List\main.lst) OBJECT(..\hex文件\main.obj)
+
+line level    source
+
+   1          #include "uart1.h"
+   2          #include "uart2.h"
+   3          #include "delay.h"
+   4          #include "stdio.h"
+   5          #include "adc.h"
+   6          #include "digital_cube.h"
+   7          #include "addr.h"
+   8          #include "ModeBusRTU.h"
+   9          #include "timer0.h"
+  10          
+  11          float CO_Value = 0;
+  12          u16 ad_value = 0;
+  13          
+  14          void main()
+  15          {
+  16   1              
+  17   1              P0M1 = 0;   P0M0 = 0;   
+  18   1              P1M1 = 0;   P1M0 = 0;   
+  19   1              P2M1 = 0;   P2M0 = 0;   
+  20   1              P3M1 = 0;   P3M0 = 0;   
+  21   1              P5M1 = 0;   P5M0 = 0;   
+  22   1              P2M0 |= 0x01 << 2;
+  23   1              //LED推挽输出
+  24   1              P2M1 &= ~(0x01 << 2);
+  25   1              P3M0 |= 0x01 << 4;
+  26   1              P3M1 &= ~(0x01) << 4;
+  27   1              P22 = 1;
+  28   1              P34 = 1;
+  29   1              addr_init();
+  30   1              ADC_Init();
+  31   1              ADC_IO_Config();
+  32   1              Timer0_Config(STC_1T, 1000);
+  33   1              
+  34   1              
+  35   1              //Delay_xms(2000);      
+  36   1              digital_cube_init();
+  37   1              address = addr_read();
+  38   1      
+  39   1              UART1_config(UART1_P30P31,11059200,9600);
+  40   1              UART2_config(UART2_P10P11,11059200,9600);
+  41   1              EA = 1;
+  42   1              while(1) {
+  43   2                      
+  44   2                      
+  45   2                      Digital_Tube_ShowNum((int)(CO_Value)%1000);
+  46   2                      //Digital_Tube_ShowNum(ad_value % 1000);
+  47   2      
+  48   2              }
+  49   1      }
+  50          
+  51          void CO_Reg0001_write(void)
+  52          {
+  53   1      
+  54   1              ad_value = Get_ADC10bitResult(8);
+C51 COMPILER V9.54   MAIN                                                                  06/30/2025 16:56:32 PAGE 2   
+
+  55   1              CO_Value = ad_value - 372 / 4.0;
+  56   1              CO_Value = CO_Value * 5 / 1024.0 * 100;
+  57   1              if (CO_Value < 0)
+  58   1                      CO_Value = 0;
+  59   1              Reg[0x0001] = (unsigned int)(CO_Value * 100);
+  60   1      }
+  61          
+  62          void error_handle(void)
+  63          {
+  64   1              if (Reg[0x0004] == 1) {
+  65   2                      P34 = 0;
+  66   2              }
+  67   1              else {
+  68   2                      P34 = 1;
+  69   2              }
+  70   1      }
+  71          
+  72          void run_1ms(void)
+  73          {
+  74   1              if (uart_send_flag) {
+  75   2                      
+  76   2                      UART2_sendArray(ModBusSendBuf_len, ModBusSendBuf);
+  77   2                      UART1_sendArray(ModBusSendBuf_len, ModBusSendBuf);
+  78   2                      uart_send_flag = 0;
+  79   2              }
+  80   1              Digital_Tube_flash();
+  81   1              //Time++;
+  82   1              cnt++;
+  83   1              if (cnt >= 10) {
+  84   2                      cnt = 0;
+  85   2                      ModBus_ReadOneByte();
+  86   2              }
+  87   1      }
+  88          
+  89          void run_500ms(void)
+  90          {
+  91   1              ///char temp[20];
+  92   1              P22 = ~P22;
+  93   1      //      PrintString2("Hello World\r\n");
+  94   1      //      sprintf(temp, "ad:%d, co:%f", ad_value, CO_Value);
+  95   1      //      PrintString2(temp);
+  96   1              
+  97   1      }
+  98          
+  99          void run_10ms(void)
+ 100          {
+ 101   1      
+ 102   1      }
+ 103          
+ 104          void run_100ms(void)
+ 105          {
+ 106   1              error_handle();
+ 107   1              CO_Reg0001_write();
+ 108   1      }
+ 109          
+ 110          uint8 count10ms;
+ 111          uint16 count500ms;
+ 112          uint8 count100ms;
+ 113          
+ 114          //1ms1次
+ 115          //void Timer2() interrupt TIMER2_VECTOR
+ 116          void Timer0() interrupt TIMER0_VECTOR
+C51 COMPILER V9.54   MAIN                                                                  06/30/2025 16:56:32 PAGE 3   
+
+ 117          {       
+ 118   1              run_1ms();
+ 119   1              count10ms++;
+ 120   1              count500ms++;
+ 121   1              count100ms++;
+ 122   1              if (count10ms >= 10) {
+ 123   2                      run_10ms();
+ 124   2                      count10ms = 0;
+ 125   2              }
+ 126   1              if (count100ms >= 100) {
+ 127   2                      run_100ms();
+ 128   2                      count100ms = 0;
+ 129   2              }
+ 130   1              
+ 131   1              if (count500ms >= 500) {
+ 132   2                      run_500ms();
+ 133   2                      count500ms = 0;
+ 134   2              }
+ 135   1      }
+ 136          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    533    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     10    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

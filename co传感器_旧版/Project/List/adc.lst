@@ -1,0 +1,83 @@
+C51 COMPILER V9.54   ADC                                                                   06/30/2025 16:56:32 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE ADC
+OBJECT MODULE PLACED IN ..\hex文件\adc.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\App\adc.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\User;..\App) DEBUG
+                    - OBJECTEXTEND PRINT(.\List\adc.lst) OBJECT(..\hex文件\adc.obj)
+
+line level    source
+
+   1          #include "adc.h"
+   2          
+   3          /*****************************************************
+   4          /*函数名称：ADC_IO_Config()
+   5          /*函数功能：ADC端口配置函数
+   6          /*输入参数：无
+   7          /*返回值：      无
+   8          *****************************************************/
+   9          void ADC_IO_Config()
+  10          {
+  11   1              P0M1 |= (1<<0); P0M0 &= ~(1<<0);        //设置I/O端口为输入模式
+  12   1      }
+  13          
+  14          /*****************************************************
+  15          /*ADC_Init()
+  16          /*函数功能：ADC配置函数
+  17          /*输入参数：模拟信号输入通道选择（0-7）
+  18          /*返回值：无
+  19          *****************************************************/
+  20          void ADC_Init()
+  21          {
+  22   1              P_SW2 |= 0x80;          //扩展RAM区特殊功能寄存器访问控制寄存器，使能访问XFR
+  23   1              //设置 ADC 内部时序, ADC 采样时间建议最大值
+  24   1              //设置 ADC 通道选择时间占用1个 ADC 工作时钟
+  25   1              //设置 ADC 通道选择保持时间占用2个 ADC 工作时钟
+  26   1              //设置 ADC 模拟信号采样时间占用32个 ADC 工作时钟，SMPDUTY=11111B
+  27   1              ADCTIM = 0x3f;
+  28   1              P_SW2 &= 0x7f;
+  29   1              //设置 ADC 转换结果右对齐
+  30   1              //设置 ADC 工作时钟为系统时钟/2/(15+1)
+  31   1              ADCCFG |= ADC_SPEED15 | ADC_RESFMTR;
+  32   1              ADC_CONTR |= ADC_POWER; //使能 ADC 模块
+  33   1              ADC_RES = 0;
+  34   1              ADC_RESL = 0;
+  35   1              Delay_xms(5);
+  36   1      }
+  37          
+  38          /*****************************************************
+  39          /*函数名称：u16 Get_ADC10bitResult(u8 ch)
+  40          /*函数功能：查询法读一次ADC结果
+  41          /*输入参数：ch:模拟信号输入通道选择（0-15）
+  42          /*返回值：      10位ADC结果
+  43          *****************************************************/
+  44          u16 Get_ADC10bitResult(u8 ch)
+  45          {
+  46   1              ADC_CONTR |= ADC_START ;        //启动 AD 转换
+  47   1              Delay_xms(1);                                                   //延时2ms
+  48   1              ADC_CONTR |= ch;                                        //ADC通道选择
+  49   1              _nop_();
+  50   1              _nop_();
+  51   1              _nop_();
+  52   1              _nop_();
+  53   1              while((ADC_CONTR & ADC_FLAG) == 0);             //等待转换完成
+  54   1              ADC_CONTR &= ~ADC_FLAG;                                                         //转换完成标志位清0
+C51 COMPILER V9.54   ADC                                                                   06/30/2025 16:56:32 PAGE 2   
+
+  55   1              return  (((u16)ADC_RES << 8) | ADC_RESL);
+  56   1      }
+  57          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     78    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       1
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

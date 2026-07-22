@@ -146,23 +146,38 @@ void TaskModbusReceive(void *arg)
             /* ---- 6. 有效传感器地址 (1-63) — 存类型、数据和报警判定 ---- */
             if (slave >= 1 && slave <= MODBUS_MAX_SLAVES)
             {
-                uint8_t  byte_count = raw.frame[2];   /* 含型号字节 */
-                uint8_t  model      = raw.frame[3];
+                uint8_t byte_count = raw.frame[2];
+                uint8_t model;
+                uint8_t data_offset;
+                uint16_t data_bytes;
+
+                /* ---- 兼容旧版 CO 传感器（无型号字节） ----
+                 * byte_count == 2  → 旧格式：无型号，默认 CO，数据从 frame[3] 起
+                 * byte_count >= 3  → 新格式：含型号字节，数据从 frame[4] 起 */
+                if (byte_count == 2)
+                {
+                    model       = SENSOR_MODEL_CO;
+                    data_offset = 3;
+                    data_bytes  = 2;
+                }
+                else
+                {
+                    model       = raw.frame[3];
+                    data_offset = 4;
+                    data_bytes  = (byte_count >= 1) ? (byte_count - 1) : 0;
+                }
 
                 /* 记录传感器类型 */
                 ModbusReg_SetType(slave, model);
 
-                /* 解析数据：frame[4] 起为数据，共 (byte_count - 1) 字节
-                 * 简单传感器：2 字节 → 1 个寄存器值
-                 * 7 合 1：   14 字节 → 7 个寄存器值 */
-                uint16_t data_bytes = (byte_count >= 1) ? (byte_count - 1) : 0;
+                /* 解析数据 */
                 for (uint8_t i = 0; i < MODBUS_DATA_REGS_PER_SENSOR; i++)
                 {
                     /* 每 2 字节一个 uint16，不足则跳出 */
                     if ((i * 2 + 1) >= data_bytes) break;
 
-                    uint16_t val = ((uint16_t)raw.frame[4 + i * 2] << 8) |
-                                    raw.frame[5 + i * 2];
+                    uint16_t val = ((uint16_t)raw.frame[data_offset + i * 2] << 8) |
+                                    raw.frame[data_offset + i * 2 + 1];
                     ModbusReg_SetData(slave, i, val);
                 }
 
