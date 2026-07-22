@@ -50,10 +50,25 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(WS_GPIO_Port, WS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LCD_RES_Pin|LCD_CS_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, LCD_SCL_Pin|LCD_A0_Pin|LCD_SID_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, WS_Pin|LCD_BL_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin|ORANGE_LED_Pin|RED_LED_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pins : LCD_RES_Pin LCD_CS_Pin LCD_SCL_Pin LCD_A0_Pin
+                           LCD_SID_Pin */
+  GPIO_InitStruct.Pin = LCD_RES_Pin|LCD_CS_Pin|LCD_SCL_Pin|LCD_A0_Pin
+                          |LCD_SID_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : WS_Pin */
   GPIO_InitStruct.Pin = WS_Pin;
@@ -67,6 +82,13 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(READ_WIND_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LCD_BL_Pin */
+  GPIO_InitStruct.Pin = LCD_BL_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LCD_BL_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ID8_Pin ID7_Pin ID4_Pin ID3_Pin
                            ID2_Pin ID1_Pin */

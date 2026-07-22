@@ -51,6 +51,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/modbus_registers.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/modbus_polling.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/dwin.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LCD_driver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/lcd_tasks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/uart2_modbus_slave.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/modbus_slave_tasks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/Middlewares/FreeRTOS/list.c

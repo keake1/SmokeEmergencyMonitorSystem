@@ -420,7 +420,15 @@ void TaskDwinIcons(void *arg)
     {
         vTaskDelayUntil(&last_wake, interval);
 
-        /* 帧 1：图标 + 全局报警 + 零地址 + 地址重复 */
+        /* ---- PB1 报警输入（高电平=报警） ----
+         * 必须在状态帧入队之前读取，这样 DWIN_BuildStatusFrame()
+         * 才能获取到最新的 smoke_alarm_flag 值来计算 window_open。 */
+        ModbusReg_SetSmokeAlarm(
+            HAL_GPIO_ReadPin(Isolator_GPIO_Port, Isolator_Pin) != GPIO_PIN_RESET);
+
+        /* 帧 1：图标 + 全局报警 + 零地址 + 地址重复
+         *   window_open = dwin_global_alarm || smoke_alarm_flag
+         *   此处的 SetGlobalAlarm 是全局报警标志的唯一赋值点。 */
         DWIN_Enqueue(DWIN_ITEM_STATUS, 0, 0);
         DWIN_ProcessQueue();
 
@@ -428,23 +436,14 @@ void TaskDwinIcons(void *arg)
         DWIN_Enqueue(DWIN_ITEM_BOARD_ADDR, 0, 0);
         DWIN_ProcessQueue();
 
-        /* ---- PB1 报警输入（高电平=报警） ---- */
-        ModbusReg_SetSmokeAlarm(
-            HAL_GPIO_ReadPin(Isolator_GPIO_Port, Isolator_Pin) != GPIO_PIN_RESET);
-
-        /* 同步 PB1 报警到全局报警标志（红灯、线圈位 128） */
-        if (ModbusReg_GetSmokeAlarm()) {
-            ModbusReg_SetGlobalAlarm(1);
-        }
-
         /* ---- 报警输出（高电平有效） ---- */
         /* WS (PB0): 全局报警 或 PB1 报警 → 高电平 */
         HAL_GPIO_WritePin(WS_GPIO_Port, WS_Pin,
             (DWIN_GetGlobalAlarm() || ModbusReg_GetSmokeAlarm()) ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
         /* ---- LED 指示（低电平点亮） ---- */
-        /* RED_LED (PB9): 全局报警 → 点亮 */
-        if (DWIN_GetGlobalAlarm())
+        /* RED_LED (PB9): 全局报警 OR PB1 → 点亮（与 WS 引脚一致） */
+        if (DWIN_GetGlobalAlarm() || ModbusReg_GetSmokeAlarm())
             HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_RESET);
         else
             HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);

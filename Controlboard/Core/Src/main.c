@@ -29,6 +29,7 @@
 #include "modbus_slave_tasks.h"
 #include "modbus_polling.h"
 #include "dwin.h"
+#include "lcd_tasks.h"
 #include "FreeRTOS.h"
 #include "task.h"
 /* USER CODE END Includes */
@@ -143,7 +144,15 @@ int main(void)
       NULL
   );
 
-  /* ---- 初始化 UART2 Modbus 从站队列 ---- */
+  /* ---- 创建 LCD 显示任务（低优先级） ---- */
+  xTaskCreate(
+      TaskLcdDisplay,
+      "LcdDisp",
+      256,
+      NULL,
+      1,
+      NULL
+  );
   ModbusSlave_InitQueues();
 
   /* ---- 创建 UART2 从站接收任务 ---- */
